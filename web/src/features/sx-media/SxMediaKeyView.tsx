@@ -27,7 +27,7 @@ export function SxMediaKeyView({ mediaKey }: { mediaKey: SxMediaKey }) {
   const isVideo = mediaKey.contentType.startsWith("video/");
 
   let body: React.ReactNode;
-  if (query.isError) {
+  if (query.isError || link?.status === "unavailable") {
     body = <Notice text="Could not load" />;
   } else if (!link) {
     body = <div className="bg-muted h-32 w-48 animate-pulse rounded-sm" />;

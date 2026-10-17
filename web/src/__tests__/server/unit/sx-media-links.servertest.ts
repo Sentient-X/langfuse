@@ -102,14 +102,18 @@ describe("SxMediaLinkResolver", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
-  it("fails loudly on an outage instead of calling keys refused", async () => {
-    const fetch = answering(() => ({
-      status: 503,
-      body: { code: "unavailable", message: "down" },
-    }));
-    await expect(resolver(fetch).resolve([key(ONE, 1)])).rejects.toThrow(
-      /503 unavailable/,
+  it("answers an outage as unavailable for that Project's keys alone", async () => {
+    const fetch = answering((project, keys) =>
+      project === TWO
+        ? { status: 503, body: { code: "unavailable", message: "down" } }
+        : linked(keys),
     );
+    const sx = resolver(fetch);
+    const links = await sx.resolve([key(ONE, 1), key(TWO, 2)]);
+    expect(links.map((l) => l.status)).toEqual(["ready", "unavailable"]);
+    // Not remembered: the next ask tries again.
+    await sx.resolve([key(TWO, 2)]);
+    expect(fetch).toHaveBeenCalledTimes(3);
   });
 
   it("says unconfigured when it has no key", async () => {

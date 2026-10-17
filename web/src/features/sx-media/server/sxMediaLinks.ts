@@ -2,6 +2,7 @@
 // API (`CatalogMediaService.GetMediaLinks`) with Langfuse's own sx API key, so
 // no storage credential ever reaches a browser. Each link is cached for less
 // than its life; a key the API refuses is answered "refused", never broken.
+import { logger } from "@langfuse/shared/src/server";
 import { parseSxMediaKey } from "@/src/features/sx-media/sxMediaKey";
 
 const METHOD =
@@ -15,7 +16,9 @@ const BATCH_WINDOW_MS = 10;
 export type SxMediaLink =
   | { key: string; status: "ready"; url: string }
   | { key: string; status: "refused" }
-  | { key: string; status: "unconfigured" };
+  | { key: string; status: "unconfigured" }
+  // The sx API could not answer (outage, rate limit, timeout); not cached.
+  | { key: string; status: "unavailable" };
 
 type Cached = { link: SxMediaLink; expiresAt: number };
 
@@ -95,9 +98,17 @@ export class SxMediaLinkResolver {
       for (let i = 0; i < projectKeys.length; i += MAX_KEYS_PER_CALL) {
         const chunk = projectKeys.slice(i, i + MAX_KEYS_PER_CALL);
         calls.push(
-          this.ask(catalogUrl, apiKey, projectId, chunk).then((links) => {
-            for (const link of links) answers.set(link.key, link);
-          }),
+          this.ask(catalogUrl, apiKey, projectId, chunk).then(
+            (links) => {
+              for (const link of links) answers.set(link.key, link);
+            },
+            (error: unknown) => {
+              // One Project's failure costs only its own keys.
+              logger.warn("sx GetMediaLinks failed", { projectId, error });
+              for (const key of chunk)
+                answers.set(key, { key, status: "unavailable" });
+            },
+          ),
         );
       }
     }
