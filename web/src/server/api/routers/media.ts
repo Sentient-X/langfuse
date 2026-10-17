@@ -12,8 +12,18 @@ import {
   type MediaReturnType,
 } from "@/src/features/media/server";
 import { type MediaEnabledFields } from "@/src/features/media/validation";
+import { sxMediaLinkResolver } from "@/src/features/sx-media/server/sxMediaLinks";
 
 export const mediaRouter = createTRPCRouter({
+  // sentientx: links for Catalog media keys (features/sx-media).
+  sxLinks: protectedProjectProcedure
+    .input(
+      z.object({
+        projectId: z.string(),
+        keys: z.array(z.string().max(1024)).min(1).max(200),
+      }),
+    )
+    .query(({ input }) => sxMediaLinkResolver().resolveTogether(input.keys)),
   getById: protectedProjectProcedure
     .input(z.object({ mediaId: z.string(), projectId: z.string() }))
     .query(async ({ input, ctx }) => {

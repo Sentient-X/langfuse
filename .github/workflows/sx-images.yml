@@ -1,0 +1,56 @@
+name: sx-images
+
+# sentientx: the web and worker images of sx/main, published to GHCR by digest.
+# The sx repository mirrors those digests into registry.sentientx.io through its
+# own release pipeline (infra/oci/cloud/images.yaml), which signs and attests
+# them; the printed digests are what it pins.
+on:
+  push:
+    branches: [sx/main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: sx-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {component: web, image: langfuse-web, dockerfile: ./web/Dockerfile}
+          - {component: worker, image: langfuse-worker, dockerfile: ./worker/Dockerfile}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        env:
+          IMAGE: ghcr.io/sentient-x/${{ matrix.image }}
+          DOCKERFILE: ${{ matrix.dockerfile }}
+        run: |
+          set -euo pipefail
+          version="$(jq -r .version package.json)"
+          tag="${version}-sx-$(git rev-parse --short=12 HEAD)"
+          docker buildx build --platform linux/amd64 \
+            --provenance=false --sbom=false \
+            --build-arg "NEXT_PUBLIC_BUILD_ID=$(git rev-parse --short HEAD)" \
+            --label "org.opencontainers.image.source=https://github.com/${GITHUB_REPOSITORY}" \
+            --label "org.opencontainers.image.revision=${GITHUB_SHA}" \
+            --metadata-file "$RUNNER_TEMP/metadata.json" \
+            --file "$DOCKERFILE" --tag "$IMAGE:$tag" --push .
+          digest="$(jq -er '."containerimage.digest"' "$RUNNER_TEMP/metadata.json")"
+          echo "$IMAGE:$tag@$digest" | tee -a "$GITHUB_STEP_SUMMARY"

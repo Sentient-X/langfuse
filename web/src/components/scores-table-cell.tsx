@@ -3,6 +3,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/src/components/ui/hover-card";
+import { SxMediaText } from "@/src/features/sx-media/SxMediaKeyView";
 import {
   type CategoricalAggregate,
   type AggregatedScoreData,
@@ -117,7 +118,9 @@ export const ScoresTableCell = ({
                 </Button>
               </div>
               <div className="max-h-[40vh] overflow-y-auto p-3 pt-0">
-                <p className="whitespace-pre-wrap">{aggregate.comment}</p>
+                <p className="whitespace-pre-wrap">
+                  <SxMediaText text={aggregate.comment} />
+                </p>
               </div>
             </HoverCardContent>
           </HoverCard>

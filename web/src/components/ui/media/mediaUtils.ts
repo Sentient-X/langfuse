@@ -1,4 +1,5 @@
 import { MediaReferenceStringSchema } from "@langfuse/shared";
+import { parseSxMediaKey } from "@/src/features/sx-media/sxMediaKey";
 
 const LANGFUSE_MEDIA_PREFIX = "@@@langfuseMedia:";
 const LANGFUSE_MEDIA_REFERENCE_PATTERN = /@@@langfuseMedia:[^@]*@@@/g;
@@ -65,6 +66,16 @@ const DATA_URI_HEADER_PATTERN =
  */
 export function classifyMediaValue(value: unknown) {
   if (typeof value !== "string" || value.length === 0) return null;
+
+  // sentientx: a Catalog media key renders as its picture or clip.
+  const sxKey = parseSxMediaKey(value);
+  if (sxKey) {
+    return {
+      kind: "sxKey" as const,
+      contentType: sxKey.contentType,
+      sxKey,
+    };
+  }
 
   if (value.startsWith(LANGFUSE_MEDIA_PREFIX)) {
     if (value.length > MAX_LANGFUSE_REFERENCE_LENGTH) return null;

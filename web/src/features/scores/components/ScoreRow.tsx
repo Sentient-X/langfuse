@@ -1,4 +1,5 @@
 import * as React from "react";
+import { SxMediaText } from "@/src/features/sx-media/SxMediaKeyView";
 import {
   type ScoreSourceType,
   type AggregatedScoreData,
@@ -162,7 +163,7 @@ export const ScoreRow = ({
                       textAlignLast: "right",
                     }}
                   >
-                    {aggregate.comment}
+                    <SxMediaText text={aggregate.comment} />
                   </span>
                 }
               />
