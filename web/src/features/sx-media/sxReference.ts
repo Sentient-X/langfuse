@@ -14,7 +14,10 @@ const BUCKET_URI = /^(?:r2|s3):\/\/[a-z0-9][a-z0-9.-]{1,62}\/\S{1,1800}$/;
 const R2_LINK = /^https:\/\/[a-z0-9]+\.r2\.cloudflarestorage\.com\/[^\s]+$/;
 const CATALOG_KEY_PREFIXES = ["captures/", "annotations/"];
 const OMITTED_PREFIX = "sx-media-omitted:";
-const OMITTED = /^sx-media-omitted:([a-z]+\/[a-z0-9.+-]+);sha256=([0-9a-f]{64});bytes=(\d+)$/;
+// The picture's own digest and size, or (base64 that did not decode) its text's
+// digest and length, which a picture's size follows at three bytes in four.
+const OMITTED =
+  /^sx-media-omitted:([a-z]+\/[a-z0-9.+-]+);sha256(-of-text)?=([0-9a-f]{64});(?:bytes|chars)=(\d+)$/;
 
 export type SxReference =
   | { kind: "resolvable"; reference: string }
@@ -34,7 +37,9 @@ export function parseSxReference(value: unknown): SxReference | null {
       kind: "omitted",
       reference: value,
       mediaType: match[1]!,
-      bytes: Number(match[3]),
+      bytes: match[2]
+        ? Math.floor((Number(match[4]) * 3) / 4)
+        : Number(match[4]),
     };
   }
   if (

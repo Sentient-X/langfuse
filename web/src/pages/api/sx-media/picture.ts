@@ -1,7 +1,7 @@
 // sentientx: one indexed frame of an episode, fetched by Langfuse's server from
 // the sx Catalog's governed thumbnail route with Langfuse's own sx key, for a
 // signed-in Langfuse user. Only that route's exact shape is fetched: a frame's
-// content digest and its Project. The bytes are immutable (content addressed).
+// content digest and its Project. A browser keeps it no longer than a link lives.
 import { type NextApiRequest, type NextApiResponse } from "next";
 import { logger } from "@langfuse/shared/src/server";
 import { getServerAuthSession } from "@/src/server/auth";
@@ -10,6 +10,7 @@ const THUMBNAIL_PATH =
   /^\/d\/catalog\/api\/experience\/thumbs\/[0-9a-f]{64}\?project_id=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const FETCH_TIMEOUT_MS = 15_000;
 const MAX_PICTURE_BYTES = 8 * 1024 * 1024;
+const CACHE_S = 300;
 
 export default async function handler(
   req: NextApiRequest,
@@ -45,7 +46,8 @@ export default async function handler(
       "Content-Type",
       response.headers.get("content-type") ?? "image/jpeg",
     );
-    res.setHeader("Cache-Control", "private, max-age=86400, immutable");
+    // No longer than a reference's links live, so a revoked grant stops showing.
+    res.setHeader("Cache-Control", `private, max-age=${CACHE_S}`);
     return res.status(200).send(body);
   } catch (error) {
     logger.warn("sx picture fetch failed", { error });

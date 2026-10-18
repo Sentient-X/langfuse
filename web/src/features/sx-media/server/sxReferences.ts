@@ -29,8 +29,9 @@ export type SxShown =
     }
   | { reference: string; status: "refused"; label: string }
   | { reference: string; status: "unconfigured" }
-  // The sx API could not answer (outage, rate limit, timeout); not cached.
-  | { reference: string; status: "unavailable" };
+  // Nothing to show now: the sx API could not answer (outage, rate limit,
+  // timeout), or sx said so in `label`; not cached.
+  | { reference: string; status: "unavailable"; label?: string };
 
 type Cached = { shown: SxShown; expiresAt: number };
 
@@ -115,7 +116,8 @@ export class SxReferenceResolver {
     const missing: string[] = [];
     for (const reference of asked) {
       const cached = this.cache.get(reference);
-      if (cached && cached.expiresAt > now) answers.set(reference, cached.shown);
+      if (cached && cached.expiresAt > now)
+        answers.set(reference, cached.shown);
       else missing.push(reference);
     }
     const calls: Promise<void>[] = [];
@@ -180,12 +182,24 @@ export class SxReferenceResolver {
     );
     return references.map((reference) => {
       const wire = byReference.get(reference);
-      if (!wire || wire.shown === "REFERENCE_SHOWN_REFUSED" || !wire.shown) {
+      if (!wire || wire.shown === "REFERENCE_SHOWN_REFUSED") {
         return this.remember(
           { reference, status: "refused", label: wire?.label || "Not allowed" },
           now + REFUSAL_TTL_MS,
         );
       }
+      // Only pictures, or a page that opens it, are ready. Anything else
+      // (REFERENCE_SHOWN_UNAVAILABLE, a kind this build does not know, a page
+      // answer without its page) is unavailable: shown as such, never cached.
+      const ready =
+        wire.shown === "REFERENCE_SHOWN_MEDIA" ||
+        (wire.shown === "REFERENCE_SHOWN_PAGE" && !!wire.page);
+      if (!ready)
+        return {
+          reference,
+          status: "unavailable" as const,
+          ...(wire.label ? { label: wire.label } : {}),
+        };
       const times = wire.pictureTimesNs ?? [];
       const pictures = (wire.pictures ?? []).flatMap((link, index) => {
         const url = link.url ? browserUrl(link.url) : null;
