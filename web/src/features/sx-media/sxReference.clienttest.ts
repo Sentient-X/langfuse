@@ -161,7 +161,8 @@ describe("SxReferenceResolver", () => {
       {
         reference: "ep_00000001",
         shown: "REFERENCE_SHOWN_UNAVAILABLE",
-        label: "Episode ep_00000001: no indexed frames yet",
+        label: "Episode ep_00000001: its frames are unavailable right now",
+        page: "https://app.sentientx.io/p/x/library/episodes/cs_1/ep_00000001",
       },
       { reference: "ep_00000002", shown: "REFERENCE_SHOWN_SOMETHING_NEW" },
       { reference: "ep_00000003", shown: "REFERENCE_SHOWN_PAGE" },
@@ -192,7 +193,12 @@ describe("SxReferenceResolver", () => {
     expect(shown[0]).toEqual({
       reference: "ep_00000001",
       status: "unavailable",
-      label: "Episode ep_00000001: no indexed frames yet",
+      label: "Episode ep_00000001: its frames are unavailable right now",
+      page: "https://app.sentientx.io/p/x/library/episodes/cs_1/ep_00000001",
+    });
+    expect(shown[1]).toEqual({
+      reference: "ep_00000002",
+      status: "unavailable",
     });
     // Only the ready answer is kept.
     await resolver.resolve(references);
