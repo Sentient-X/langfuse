@@ -36,12 +36,12 @@ function Resolved({ reference }: { reference: string }) {
 
   let body: React.ReactNode;
   if (query.isError || shown?.status === "unavailable") {
+    const unavailable = shown?.status === "unavailable" ? shown : undefined;
     body = (
-      <Notice
-        text={
-          (shown?.status === "unavailable" && shown.label) || "Could not load"
-        }
-      />
+      <span className="inline-flex items-center gap-2 text-xs">
+        <Notice text={unavailable?.label || "Could not load"} />
+        {unavailable?.page && <OpenLink href={unavailable.page} />}
+      </span>
     );
   } else if (!shown) {
     body = <div className="bg-muted h-24 w-40 animate-pulse rounded-sm" />;
@@ -88,18 +88,7 @@ function Resolved({ reference }: { reference: string }) {
         )}
         <span className="text-muted-foreground inline-flex items-center gap-2 text-xs">
           <span>{shown.label}</span>
-          {shown.page && (
-            <a
-              href={shown.page}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary inline-flex items-center gap-0.5 hover:underline"
-              onClick={(event) => event.stopPropagation()}
-            >
-              Open
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          )}
+          {shown.page && <OpenLink href={shown.page} />}
         </span>
       </>
     );
@@ -113,6 +102,21 @@ function Resolved({ reference }: { reference: string }) {
     >
       {body}
     </span>
+  );
+}
+
+function OpenLink({ href }: { href: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-primary inline-flex items-center gap-0.5 hover:underline"
+      onClick={(event) => event.stopPropagation()}
+    >
+      Open
+      <ExternalLink className="h-3 w-3" />
+    </a>
   );
 }
 

@@ -30,8 +30,9 @@ export type SxShown =
   | { reference: string; status: "refused"; label: string }
   | { reference: string; status: "unconfigured" }
   // Nothing to show now: the sx API could not answer (outage, rate limit,
-  // timeout), or sx said so in `label`; not cached.
-  | { reference: string; status: "unavailable"; label?: string };
+  // timeout), or sx said so in `label`, with the `page` that still opens it;
+  // not cached.
+  | { reference: string; status: "unavailable"; label?: string; page?: string };
 
 type Cached = { shown: SxShown; expiresAt: number };
 
@@ -199,6 +200,7 @@ export class SxReferenceResolver {
           reference,
           status: "unavailable" as const,
           ...(wire.label ? { label: wire.label } : {}),
+          ...(wire.page ? { page: wire.page } : {}),
         };
       const times = wire.pictureTimesNs ?? [];
       const pictures = (wire.pictures ?? []).flatMap((link, index) => {
