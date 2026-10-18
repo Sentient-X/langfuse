@@ -13,6 +13,7 @@ import {
 } from "@/src/features/media/server";
 import { type MediaEnabledFields } from "@/src/features/media/validation";
 import { sxMediaLinkResolver } from "@/src/features/sx-media/server/sxMediaLinks";
+import { sxReferenceResolver } from "@/src/features/sx-media/server/sxReferences";
 
 export const mediaRouter = createTRPCRouter({
   // sentientx: links for Catalog media keys (features/sx-media).
@@ -24,6 +25,17 @@ export const mediaRouter = createTRPCRouter({
       }),
     )
     .query(({ input }) => sxMediaLinkResolver().resolveTogether(input.keys)),
+  // sentientx: what references to private recordings show (features/sx-media).
+  sxReferences: protectedProjectProcedure
+    .input(
+      z.object({
+        projectId: z.string(),
+        references: z.array(z.string().max(2048)).min(1).max(100),
+      }),
+    )
+    .query(({ input }) =>
+      sxReferenceResolver().resolveTogether(input.references),
+    ),
   getById: protectedProjectProcedure
     .input(z.object({ mediaId: z.string(), projectId: z.string() }))
     .query(async ({ input, ctx }) => {

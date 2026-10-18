@@ -1,5 +1,6 @@
 import { MediaReferenceStringSchema } from "@langfuse/shared";
 import { parseSxMediaKey } from "@/src/features/sx-media/sxMediaKey";
+import { parseSxReference } from "@/src/features/sx-media/sxReference";
 
 const LANGFUSE_MEDIA_PREFIX = "@@@langfuseMedia:";
 const LANGFUSE_MEDIA_REFERENCE_PATTERN = /@@@langfuseMedia:[^@]*@@@/g;
@@ -74,6 +75,17 @@ export function classifyMediaValue(value: unknown) {
       kind: "sxKey" as const,
       contentType: sxKey.contentType,
       sxKey,
+    };
+  }
+
+  // sentientx: a reference to a private recording (an episode, a moment of one,
+  // an object in a bucket, a QC view) renders as what sx says it shows.
+  const sxReference = parseSxReference(value);
+  if (sxReference) {
+    return {
+      kind: "sxReference" as const,
+      contentType: "application/x-sx-reference",
+      sxReference,
     };
   }
 

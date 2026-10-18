@@ -4,6 +4,7 @@ import { useResolvedMedia } from "./useResolvedMedia";
 import { type MediaDescriptor } from "./mediaUtils";
 import { OBSERVATION_FIELD_SIZE_LIMIT_MEDIA_SOURCE } from "@langfuse/shared";
 import { SxMediaKeyView } from "@/src/features/sx-media/SxMediaKeyView";
+import { SxReferenceView } from "@/src/features/sx-media/SxReferenceView";
 
 type LangfuseRefDescriptor = Extract<MediaDescriptor, { kind: "langfuseRef" }>;
 
@@ -19,6 +20,10 @@ export function MediaReferenceTag({
 }) {
   if (descriptor.kind === "sxKey") {
     return <SxMediaKeyView mediaKey={descriptor.sxKey} />;
+  }
+
+  if (descriptor.kind === "sxReference") {
+    return <SxReferenceView reference={descriptor.sxReference} />;
   }
 
   if (descriptor.kind !== "langfuseRef") {
