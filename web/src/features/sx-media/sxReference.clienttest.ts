@@ -50,6 +50,12 @@ describe("parseSxReference", () => {
       bytes: 12345,
     });
     expect(bytesInWords(12345)).toBe("12 KB");
+    // Base64 that did not decode is named by its text: about 3 bytes in 4 chars.
+    expect(
+      parseSxReference(
+        `sx-media-omitted:image/png;sha256-of-text=${"cd".repeat(32)};chars=4000`,
+      ),
+    ).toMatchObject({ kind: "omitted", mediaType: "image/png", bytes: 3000 });
   });
 
   it("is no reference for anything else", () => {
@@ -87,9 +93,9 @@ describe("SxReferenceResolver", () => {
       expect(JSON.parse(String(init?.body))).toEqual({
         references: [EPISODE, "ep_00000000"],
       });
-      expect(
-        (init?.headers as Record<string, string>)["x-sx-project-id"],
-      ).toBe("b98ba48a-39c1-4346-98a4-d9c130144a42");
+      expect((init?.headers as Record<string, string>)["x-sx-project-id"]).toBe(
+        "b98ba48a-39c1-4346-98a4-d9c130144a42",
+      );
       return new Response(
         JSON.stringify({
           resolved: [
@@ -148,6 +154,53 @@ describe("SxReferenceResolver", () => {
     expect((await resolver.resolve([EPISODE]))[0]?.status).toBe("unavailable");
     await resolver.resolve([EPISODE]);
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("treats only pictures or a page as ready, anything else as unavailable", async () => {
+    const answers = [
+      {
+        reference: "ep_00000001",
+        shown: "REFERENCE_SHOWN_UNAVAILABLE",
+        label: "Episode ep_00000001: no indexed frames yet",
+      },
+      { reference: "ep_00000002", shown: "REFERENCE_SHOWN_SOMETHING_NEW" },
+      { reference: "ep_00000003", shown: "REFERENCE_SHOWN_PAGE" },
+      { reference: "ep_00000004" },
+      {
+        reference: "ep_00000005",
+        shown: "REFERENCE_SHOWN_PAGE",
+        page: "https://app.sentientx.io/p/x",
+        label: "Episode",
+      },
+    ];
+    const fetch = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ resolved: answers, linksValidS: 3600 }), {
+          status: 200,
+        }),
+    );
+    const resolver = new SxReferenceResolver(config(fetch as never));
+    const references = answers.map((a) => a.reference);
+    const shown = await resolver.resolve(references);
+    expect(shown.map((s) => s.status)).toEqual([
+      "unavailable",
+      "unavailable",
+      "unavailable",
+      "unavailable",
+      "ready",
+    ]);
+    expect(shown[0]).toEqual({
+      reference: "ep_00000001",
+      status: "unavailable",
+      label: "Episode ep_00000001: no indexed frames yet",
+    });
+    // Only the ready answer is kept.
+    await resolver.resolve(references);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    const [, again] = fetch.mock.calls[1] as unknown as [unknown, RequestInit];
+    expect(JSON.parse(String(again.body))).toEqual({
+      references: references.slice(0, 4),
+    });
   });
 
   it("never hands a browser anything but a link or our own proxy", () => {

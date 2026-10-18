@@ -36,7 +36,13 @@ function Resolved({ reference }: { reference: string }) {
 
   let body: React.ReactNode;
   if (query.isError || shown?.status === "unavailable") {
-    body = <Notice text="Could not load" />;
+    body = (
+      <Notice
+        text={
+          (shown?.status === "unavailable" && shown.label) || "Could not load"
+        }
+      />
+    );
   } else if (!shown) {
     body = <div className="bg-muted h-24 w-40 animate-pulse rounded-sm" />;
   } else if (shown.status === "refused") {
