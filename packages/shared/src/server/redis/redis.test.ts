@@ -15,6 +15,7 @@ import {
   scanKeys,
   redisQueueRetryOptions,
   redisClusterRetryStrategy,
+  defaultRedisOptions,
 } from "./redis";
 import { logger } from "../logger";
 import {
@@ -267,6 +268,26 @@ describe("formatRedisErrorMessage", () => {
     );
   });
 });
+describe("defaultRedisOptions", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // The shared client (caches, locks) is built from these options alone. Without
+  // the READONLY reconnect it stays on a demoted primary after a Sentinel
+  // failover and every write fails until the pod restarts.
+  it("reconnects every client, not only the queues, when its node answers READONLY", () => {
+    vi.spyOn(logger, "warn").mockImplementation(() => logger);
+    const result = defaultRedisOptions.reconnectOnError!(
+      new Error("READONLY You can't write against a read only replica."),
+    );
+    expect(result).toBe(2);
+    expect(redisQueueRetryOptions.reconnectOnError).toBe(
+      defaultRedisOptions.reconnectOnError,
+    );
+  });
+});
+
 describe("redisQueueRetryOptions", () => {
   const retryStrategy = redisQueueRetryOptions.retryStrategy as (
     times: number,

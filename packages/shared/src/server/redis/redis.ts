@@ -18,7 +18,25 @@ const logRedisError = (
   logger.error(formatRedisErrorMessage(prefix, context), context);
 };
 
-const defaultRedisOptions: Partial<RedisOptions> = {
+// Every client reconnects when its node answers READONLY. A Sentinel failover
+// demotes the old primary without closing its ordinary client connections, so a
+// client that does not reconnect keeps writing to a replica: on 2026-11-10 the main
+// client of three pods did so for three days (about 900 failed writes an hour)
+// while only the queue clients, which carried this handler, moved to the new primary.
+const reconnectOnError = (err: Error): boolean | 1 | 2 => {
+  // MOVED/ASK are normal cluster redirections handled by ioredis — not real errors.
+  if (err.message.includes("MOVED")) {
+    logger.debug(`Redis cluster redirect: ${err.message}`);
+    return false;
+  }
+
+  // Reconnects on READONLY errors and auto-retries the command.
+  logger.warn(`Redis connection error: ${err.message}`);
+  return err.message.includes("READONLY") ? 2 : false;
+};
+
+export const defaultRedisOptions: Partial<RedisOptions> = {
+  reconnectOnError,
   enableReadyCheck: true,
   maxRetriesPerRequest: null,
   enableAutoPipelining: env.REDIS_ENABLE_AUTO_PIPELINING === "true",
@@ -63,17 +81,7 @@ export const redisQueueRetryOptions: Partial<RedisOptions> = {
     // outage outlives those attempts.
     return jitteredBackoffMs(Math.max(Math.min(Math.exp(times), 20000), 2000));
   },
-  reconnectOnError: (err) => {
-    // MOVED/ASK are normal cluster redirections handled by ioredis — not real errors.
-    if (err.message.includes("MOVED")) {
-      logger.debug(`Redis cluster redirect: ${err.message}`);
-      return false;
-    }
-
-    // Reconnects on READONLY errors and auto-retries the command.
-    logger.warn(`Redis connection error: ${err.message}`);
-    return err.message.includes("READONLY") ? 2 : false;
-  },
+  reconnectOnError,
 };
 
 type BullMQOptionsWithRedis = Pick<
